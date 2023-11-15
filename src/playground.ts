@@ -1,6 +1,8 @@
 
 class Playground {
     public static CreateScene(engine: BABYLON.Engine, canvas: HTMLCanvasElement): BABYLON.Scene {
+        //#region Scene setup
+
         // This creates a basic Babylon Scene object (non-mesh)
         var scene = new BABYLON.Scene(engine);
 
@@ -10,20 +12,52 @@ class Playground {
         // This attaches the camera to the canvas
         camera.attachControl(canvas, true);
 
-        // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
-        var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+        //#endregion
 
-        // Default intensity is 1. Let's dim the light a small amount
-        light.intensity = 0.7;
+        //#region Audio capture
 
-        // Our built-in 'sphere' shape. Params: name, options, scene
-        var sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2, segments: 32}, scene);
+        const audioContext = new AudioContext();
 
-        // Move the sphere upward 1/2 its height
-        sphere.position.y = 1;
+        // Square-wave synth with gain control.
+        const synthNode = new OscillatorNode(audioContext, { type: "square", frequency: 440 });
+        const synthGainNode = new GainNode(audioContext, { gain: 0.1 });
+        synthNode.start();
+        synthNode.connect(synthGainNode);
+        synthGainNode.connect(audioContext.destination);
 
-        // Our built-in 'ground' shape. Params: name, options, scene
-        var ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 6, height: 6}, scene);
+        // Recorder nodes.
+        let recorderStreamNode: MediaStreamAudioDestinationNode | null = null;
+        let recorderNode: MediaRecorder | null = null;
+
+        const startRecording = () => {
+            console.debug("Starting recording.");
+
+            recorderStreamNode = new MediaStreamAudioDestinationNode(audioContext);
+            synthGainNode.connect(recorderStreamNode);
+            recorderNode = new MediaRecorder(recorderStreamNode.stream);
+            recorderNode.start();
+        }
+
+        const stopRecording = () => {
+            console.debug("Stopping recording.");
+
+            recorderNode?.addEventListener("dataavailable", (e) => {
+                console.debug("Audio blob:");
+                console.debug(e.data);
+                recorderNode = null;
+                recorderStreamNode = null;
+            });
+            recorderNode?.stop();
+        }
+
+        // User interaction to start audio context.
+        document.onclick = () => {
+            audioContext.resume();
+        }
+
+        //#endregion
+
+        //#region GUI
 
         // Setup GUI.
         let canvasZone = document.getElementById("canvasZone")!;
@@ -41,17 +75,15 @@ class Playground {
         gui.domElement.style.top = "0";
         gui.domElement.style.right = "0";
 
-        const cameraGui = gui.addFolder("camera");
-        cameraGui.add(camera, "alpha", -Math.PI, Math.PI, 0.01).listen();
-        cameraGui.add(camera, "beta", 0.01, Math.PI - 0.01, 0.01).listen();
-        cameraGui.add(camera, "radius", 5, 100, 0.01).listen();
-        cameraGui.open();
+        const guiFunctions = {
+            startRecording: startRecording,
+            stopRecording: stopRecording
+        };
 
-        camera.onViewMatrixChangedObservable.add(() => {
-            while (camera.alpha < -Math.PI) camera.alpha += 2 * Math.PI;
-            while (Math.PI < camera.alpha) camera.alpha -= 2 * Math.PI;
-            camera.radius = Math.min(Math.max(5, camera.radius), 100);
-        });
+        gui.add(guiFunctions, "startRecording").name("Start recording");
+        gui.add(guiFunctions, "stopRecording").name("Stop recording");
+
+        //#endregion
 
         return scene;
     }
