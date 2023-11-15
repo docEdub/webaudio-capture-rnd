@@ -59,18 +59,18 @@ class Playground {
             synthNode.stop();
         }
 
-        // Audio JS blob playback function.
+        // Audio JS blob playback node and function.
+        let audioHtmlElement: HTMLAudioElement | null = null;
+        let audioSourceNode: MediaElementAudioSourceNode | null = null;
+
         const playBlob = (blob: Blob) => {
             console.debug("Playing blob.");
 
-            const audio = new Audio();
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const srcUrl = e.target!.result as string;
-                audio.src = srcUrl;
-                audio.play();
-            };
-            reader.readAsDataURL(blob);
+            audioHtmlElement = new Audio(URL.createObjectURL(blob));
+            audioSourceNode = new MediaElementAudioSourceNode(audioContext, { mediaElement: audioHtmlElement });
+            audioSourceNode.connect(audioContext.destination);
+
+            audioHtmlElement.play();
         }
 
         // User interaction to start audio context.
