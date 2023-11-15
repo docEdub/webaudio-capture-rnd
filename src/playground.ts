@@ -60,17 +60,16 @@ class Playground {
         }
 
         // Audio JS blob playback node and function.
-        let audioHtmlElement: HTMLAudioElement | null = null;
-        let audioSourceNode: MediaElementAudioSourceNode | null = null;
+        let audioSourceNode: AudioBufferSourceNode | null = null;
 
-        const playBlob = (blob: Blob) => {
+        const playBlob = async (blob: Blob) => {
             console.debug("Playing blob.");
 
-            audioHtmlElement = new Audio(URL.createObjectURL(blob));
-            audioSourceNode = new MediaElementAudioSourceNode(audioContext, { mediaElement: audioHtmlElement });
+            const arrayBuffer = await blob.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            audioSourceNode = new AudioBufferSourceNode(audioContext, { buffer: audioBuffer });
             audioSourceNode.connect(audioContext.destination);
-
-            audioHtmlElement.play();
+            audioSourceNode.start();
         }
 
         // User interaction to start audio context.
