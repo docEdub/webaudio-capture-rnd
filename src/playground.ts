@@ -21,11 +21,10 @@ class Playground {
         // Square-wave synth with gain control.
         const synthNode = new OscillatorNode(audioContext, { type: "square", frequency: 440 });
         const synthGainNode = new GainNode(audioContext, { gain: 0.1 });
-        synthNode.start();
         synthNode.connect(synthGainNode);
         synthGainNode.connect(audioContext.destination);
 
-        // Recorder nodes.
+        // Recording nodes and functions.
         let recorderStreamNode: MediaStreamAudioDestinationNode | null = null;
         let recorderNode: MediaRecorder | null = null;
 
@@ -36,18 +35,42 @@ class Playground {
             synthGainNode.connect(recorderStreamNode);
             recorderNode = new MediaRecorder(recorderStreamNode.stream);
             recorderNode.start();
+            synthNode.start();
         }
 
         const stopRecording = () => {
             console.debug("Stopping recording.");
 
             recorderNode?.addEventListener("dataavailable", (e) => {
+                const blob = e.data;
+
                 console.debug("Audio blob:");
-                console.debug(e.data);
+                console.debug(blob);
+
                 recorderNode = null;
                 recorderStreamNode = null;
+
+                setTimeout(() => {
+                    playBlob(blob);
+                }, 5000);
             });
+
             recorderNode?.stop();
+            synthNode.stop();
+        }
+
+        // Audio JS blob playback function.
+        const playBlob = (blob: Blob) => {
+            console.debug("Playing blob.");
+
+            const audio = new Audio();
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const srcUrl = e.target!.result as string;
+                audio.src = srcUrl;
+                audio.play();
+            };
+            reader.readAsDataURL(blob);
         }
 
         // User interaction to start audio context.
